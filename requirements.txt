@@ -1,6 +1,5 @@
 numpy
 scipy
 matplotlib
-jax
-jaxlib
-numpyro
+pandas
+torch
