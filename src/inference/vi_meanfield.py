@@ -1,6 +1,5 @@
 # Mean-field Gaussian variational inference.
 
-
 from __future__ import annotations
 import math
 from typing import Callable, List, Tuple
