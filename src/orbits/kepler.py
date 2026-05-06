@@ -99,21 +99,3 @@ def log_likelihood_two_planet(theta: Tensor,
     resid = rv_obs - rv_pred
     return -0.5 * torch.sum(resid ** 2 / sigma2 + torch.log(2.0 * math.pi * sigma2))
 
-# Details regarding this model #
-"""
-The standard form for the line-of-sight velocity of a star induced by a single
-orbiting planet is
-    v_r(t) = K * [cos(omega + nu(t)) + e * cos(omega)],
-where nu is the true anomaly and (P, tp, e, omega, K) are the orbital
-parameters: period, time of periastron, eccentricity, argument of periastron,
-and semi-amplitude. The expression above is taken from Wright & Howard (2009),
-eq. (1), which is the same formulation used by RadVel and exoplanet.
-
-The true anomaly is computed from the eccentric anomaly E via the half-angle
-identity, and E is the solution of Kepler's equation M = E - e sin(E) where
-M = 2 pi (t - tp) / P is the mean anomaly. We solve Kepler's equation by
-Newton's method, which converges quadratically for e in [0, 1).
-
-For two planets we sum the per-planet contributions and add a systemic
-velocity offset v0.
-"""

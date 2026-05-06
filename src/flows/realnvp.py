@@ -99,19 +99,3 @@ class RealNVP(nn.Module):
         log_base = (-0.5 * z ** 2 - 0.5 * math.log(2.0 * math.pi)).sum(dim=-1)
         log_q = log_base - log_det
         return y, log_q
-    
-# Details of use and implementation #
-"""
-This script is Used as the global proposal distribution in the Gabrié et al. (2022) flow-MCMC
-algorithm; their public code (`flonaco`) uses Real-NVP for the same reason.
-
-A coupling layer with binary mask m computes
-    y = m * z + (1 - m) * (z * exp(s(m * z)) + t(m * z)),
-where s and t are neural networks. The Jacobian is triangular, so its log
-determinant is just the sum of (1 - m) * s. Both forward and inverse are
-cheap and deterministic.
-
-We alternate the mask across layers (stripes), which is the standard pattern
-for vector-valued events; without alternation, half the coordinates would
-never be transformed.
-"""

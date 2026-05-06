@@ -33,21 +33,4 @@ class PlanarLayer(nn.Module):
         psi = (1.0 - torch.tanh(a) ** 2).unsqueeze(1) * self.w.unsqueeze(0)  # (n, D)
         log_det = torch.log(torch.abs(1.0 + psi @ u_hat) + 1e-12)            # (n,)
         return f_z, log_det
-    
-# Details of Planar normalizing flow #
-"""
-A single planar layer is the invertible map
-    f(z) = z + u h(w^T z + b),
-with parameters u, w in R^D and b in R, and a smooth nonlinearity h. This will use
-h = tanh throughout.
 
-The log-determinant of the Jacobian reduces to
-    log |det df/dz| = log |1 + u^T psi(z)|,
-where psi(z) = h'(w^T z + b) w. This is O(D) to compute.
-
-Invertibility requires w^T u >= -1. So, I will enforce this by
-replacing u with
-    u_hat = u + (m(w^T u) - w^T u) w / ||w||^2,
-where m(x) = -1 + softplus(x). This guarantees w^T u_hat >= -1 for any free
-parameters u, w.
-"""

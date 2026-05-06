@@ -94,26 +94,3 @@ def initial_eta() -> Tensor:
         0.0,                     # log_jitter, jitter ~ 1 m/s
     ])
 
-# Details regarding the Transforms #
-""" Hamiltonian Monte Carlo and gradient-based Variational Inference both want a 
-parameter vector in R^d with no boundaries. Some of the orbital parameters are 
-constrained (P, K must be positive; e is in [0, 1]), so we reparameterize as:
-
-    eta_1  = log P1               eta_7  = logit e2
-    eta_2  = tp1                  eta_8  = omega2
-    eta_3  = logit e1             eta_9  = log K2
-    eta_4  = omega1               eta_10 = v0
-    eta_5  = log K1               eta_11 = log_jitter
-    eta_6  = log P2               eta_0,...,eta_11 in R
-
-The Sampling/optimizing in eta-space requires us to add a log-Jacobian term to the
-log posterior, since the change of variables theta = T(eta) gives
-    p(eta) = p(theta) * |det dT/deta|
-and we want the log of the right-hand side.
-
-Per-coordinate log-Jacobian contributions:
-    log P -> P:           contributes log P     (i.e. eta itself)
-    log K -> K:           contributes log K
-    logit e -> e:         contributes log(e (1 - e))
-
-omega and tp use identity transforms, so they contribute zero."""

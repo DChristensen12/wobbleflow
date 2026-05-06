@@ -130,19 +130,3 @@ def log_posterior_two_planet(theta: Tensor,
         + log_prior_two_planet(theta, log_jitter)
     )
 
-# More details about the conventions used #
-"""
-The choices described below are following conventions used throughout the RV literature and
-the RadVel / exoplanet packages. More specifically:
-    - Period uses a log-uniform prior, since it is a positive scale parameter
-      with no natural prior on its order of magnitude. See Ford & Gregory
-      (2007) for discussion.
-    - Eccentricity uses Beta(0.867, 3.03), the empirical fit of Kipping
-      (2013) to the long-period exoplanet population.
-    - Phase angles (omega, tp) use uniform priors over their natural domains.
-    - The semi-amplitude K and the systemic velocity v0 use weakly
-      informative scale-fixed priors.
-
-Most functions return -inf outside the support so the optimizer / sampler
-sees an immediate barrier rather than NaNs from out-of-domain log densities.
-"""
