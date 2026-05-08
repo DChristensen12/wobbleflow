@@ -27,11 +27,13 @@ class CouplingLayer(nn.Module):
             nn.Linear(hidden, D),
         )
 
-        # Init the last layer of each net to zero so the layer starts as the
-        # identity map. This makes early training much more stable.
-        for m in (self.s_net[-1], self.t_net[-1]):
-            nn.init.zeros_(m.weight)
-            nn.init.zeros_(m.bias)
+        # Init the last Linear of each net to zero so the layer starts as
+        # the identity map. s_net ends with a Tanh (stability bound), so
+        # its last Linear is at index -2; t_net ends with Linear at -1.
+        nn.init.zeros_(self.s_net[-2].weight)
+        nn.init.zeros_(self.s_net[-2].bias)
+        nn.init.zeros_(self.t_net[-1].weight)
+        nn.init.zeros_(self.t_net[-1].bias)
 
     def forward(self, z: torch.Tensor):
         """z -> y. Returns (y, log|det df/dz|)."""
