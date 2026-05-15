@@ -17,11 +17,6 @@ env/
 # Jupyter
 .ipynb_checkpoints/
 
-# Generated outputs
-figures/*.png
-figures/*.pdf
-figures/*.svg
-
 # Logs and temp files
 *.log
 *.tmp
