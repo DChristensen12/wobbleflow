@@ -1,5 +1,4 @@
-# Effective sample size and mixing diagnostics; MCMC diagnostics: autocorrelation and effective sample size.
-
+# Markov Chain Monte Carlo diagnostics: autocorrelation and effective sample size.
 
 from __future__ import annotations
 from typing import Optional
@@ -7,9 +6,9 @@ import numpy as np
 
 
 def autocorr_1d(x: np.ndarray, max_lag: Optional[int] = None) -> np.ndarray:
-    """Sample autocorrelation function of a 1d array up to `max_lag`.
-    Computes rho_k = (1 / (n - k)) sum_{i} (x_i - mean)(x_{i+k} - mean) / var.
-    The default max_lag is N/4, which is a common practical compromise.
+    """Samples autocorrelation of a 1D chain at lags 0..max_lag-1.
+    Default max_lag is N/4, which is a common practical compromise between
+    seeing the autocorrelation decay and avoiding the noisy tail.
     """
     x = np.asarray(x, dtype=float)
     x = x - x.mean()
@@ -24,19 +23,26 @@ def autocorr_1d(x: np.ndarray, max_lag: Optional[int] = None) -> np.ndarray:
 
 
 def ess_1d(x: np.ndarray) -> float:
-    """Effective sample size of a 1d MCMC chain.
-    Sums the autocorrelations up to the first negative lag, then applies
-    the standard ESS formula. `max(tau, 1)` guards against pathological
-    chains where the truncated sum somehow goes below 1.
+    """Effective sample size for a 1D MCMC chain.
+    Sums the autocorrelations up to the first negative lag (initial monotone
+    sequence truncation), then applies ESS = N / (1 + 2 sum rho_k).
     """
     rho = autocorr_1d(x, max_lag=min(len(x) // 4, 500))
-
-    # Find the first negative lag; if every lag is nonneg, just sum all of them.
     neg_idx = np.argmax(rho < 0)
     if neg_idx == 0 and rho[0] >= 0:
         cut = len(rho)
     else:
         cut = neg_idx
-
     tau = 1.0 + 2.0 * np.sum(rho[1:cut])
     return len(x) / max(tau, 1.0)
+
+
+def posterior_summary(samples: np.ndarray) -> dict:
+    """Return mean, std, median, and 95% HDI for a 1D sample array."""
+    return {
+        "mean":   float(np.mean(samples)),
+        "std":    float(np.std(samples)),
+        "median": float(np.median(samples)),
+        "hdi_lo": float(np.percentile(samples, 2.5)),
+        "hdi_hi": float(np.percentile(samples, 97.5)),
+    }

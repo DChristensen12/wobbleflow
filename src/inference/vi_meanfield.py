@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import math
-from typing import Callable, List, Tuple
+from typing import Callable, Tuple
 import torch
 from torch import Tensor
 
@@ -12,13 +12,12 @@ def gaussian_entropy(log_s: Tensor) -> Tensor:
     return torch.sum(log_s) + 0.5 * log_s.numel() * (1.0 + math.log(2.0 * math.pi))
 
 
-def elbo(mu: Tensor,
-         log_s: Tensor,
-         log_post_fn: Callable[[Tensor], Tensor],
-         n_mc: int = 8) -> Tensor:
-    """Monte Carlo estimate of the ELBO using the reparameterization trick.
-    Drawing n_mc samples per gradient step keeps gradient noise low; 8 is
-    plenty for a 12-dimensional target.
+def elbo_meanfield(mu: Tensor, log_s: Tensor,
+                   log_post_fn: Callable[[Tensor], Tensor],
+                   n_mc: int = 32) -> Tensor:
+    """Monte Carlo ELBO using the reparameterization trick.
+    Draws n_mc samples eta = mu + s * eps with eps ~ N(0,I), averages
+    log pi(eta), then adds the closed-form Gaussian entropy.
     """
     s = torch.exp(log_s)
     eps = torch.randn(n_mc, mu.numel())
@@ -27,36 +26,47 @@ def elbo(mu: Tensor,
     return log_pi.mean() + gaussian_entropy(log_s)
 
 
-def fit(eta_init: Tensor,
-        log_post_fn: Callable[[Tensor], Tensor],
-        n_iter: int = 1500,
-        lr: float = 5e-3,
-        n_mc: int = 8,
-        verbose: bool = False) -> Tuple[Tensor, Tensor, List[float]]:
-    """Optimize the ELBO with Adam.
-    Returns the fitted (mu, log_s) and the ELBO history (one value per
-    iteration). Initial log_s = -2 corresponds to s ~ 0.14, which is a
-    reasonable default for our reparameterized eta coordinates.
+def fit_meanfield(eta_init: Tensor,
+                  log_post_fn: Callable[[Tensor], Tensor],
+                  n_iter: int = 2000, lr: float = 1e-2,
+                  n_mc: int = 64, log_s_init: float = -3.0,
+                  verbose: bool = False) -> Tuple[Tensor, Tensor, list]:
+    """Optimizes the ELBO with Adam plus cosine LR decay.
+    A tight initial variance (log_s = -3, so s ~ 0.05) keeps the likelihood
+    gradient dominant early and prevents the variance from blowing up before
+    the mean has had a chance to settle. Cosine decay smooths out late
+    training where MC noise would otherwise produce visible ELBO jitter.
     """
     mu = eta_init.detach().clone().requires_grad_(True)
-    log_s = torch.full_like(eta_init, -2.0).requires_grad_(True)
+    log_s = torch.full_like(eta_init, log_s_init).requires_grad_(True)
 
     opt = torch.optim.Adam([mu, log_s], lr=lr)
-    history: List[float] = []
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        opt, T_max=n_iter, eta_min=lr * 1e-2,
+    )
+
+    history = []
     for it in range(n_iter):
         opt.zero_grad()
-        loss = -elbo(mu, log_s, log_post_fn, n_mc=n_mc)
+        elbo = elbo_meanfield(mu, log_s, log_post_fn, n_mc=n_mc)
+        if torch.isnan(elbo):
+            print(f"  NaN at iter {it}; aborting")
+            break
+        loss = -elbo
         loss.backward()
+        # Clip rare large gradients that would otherwise destabilize training.
+        torch.nn.utils.clip_grad_norm_([mu, log_s], 5.0)
         opt.step()
-        history.append(-float(loss))
+        scheduler.step()
+        history.append(float(elbo.detach()))
         if verbose and (it + 1) % 200 == 0:
-            print(f"iter {it+1:5d}  ELBO = {-float(loss):.2f}")
+            print(f"iter {it+1:5d}  ELBO = {float(elbo.detach()):.2f}")
 
     return mu.detach(), log_s.detach(), history
 
 
-def sample(mu: Tensor, log_s: Tensor, n: int) -> Tensor:
-    """Draw n samples from the fitted variational distribution."""
+def sample_meanfield(mu: Tensor, log_s: Tensor, n: int) -> Tensor:
+    """Draws n samples from the fitted Gaussian variational distribution."""
     s = torch.exp(log_s)
     eps = torch.randn(n, mu.numel())
     return mu.unsqueeze(0) + s.unsqueeze(0) * eps
