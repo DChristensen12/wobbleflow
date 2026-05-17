@@ -1,5 +1,4 @@
 # wobbleflow
----
 
 <div align="center">
   <img src="assets/K2-24_Artistic_Picture.png" width="600"/>
@@ -40,11 +39,11 @@ The data loads directly from the RadVel GitHub in both the notebook and `cross_m
 
 All four methods agree on the posterior mode: P1 around 20.4–20.5 days, P2 around 41–41.5 days, both within about half a day of the transit values. The interesting differences are in how they characterize uncertainty.
 
-**On the VI comparison:** the headline claim from Rezende & Mohamed is that flows give a strictly better approximation than mean-field, and the ELBOs back this up. What's subtle is that the marginal period histograms look nearly identical between the two methods. The flow's gain comes from modeling joint correlations between parameters (period–eccentricity, period–amplitude), not from changing the marginals. If you evaluated this comparison by eyeballing histograms you'd conclude the flow barely helped — the ELBO is the honest diagnostic.
+**On the VI comparison:** the headline claim from Rezende & Mohamed is that flows give a strictly better approximation than mean-field, and the ELBOs back this up. What's subtle is that the marginal period histograms look nearly identical between the two methods. The flow's gain comes from modeling joint correlations between parameters (period-eccentricity, period-amplitude), not from changing the marginals. If you evaluated this comparison by eyeballing histograms you'd conclude the flow barely helped, the ELBO is the honest diagnostic.
 
 Neither VI method captures multimodality. HMC's P1 histogram shows secondary peaks at aliased periods around 10 and 15 days; both VI posteriors are clean unimodals at the dominant mode. Planar flows are local deformations of a single Gaussian, not architectures that can span well-separated modes. That's a known limitation, not a bug.
 
-**On the MCMC comparison:** HMC's pooled P2 posterior has a standard deviation of 88 days, which looks absurd. Looking at the individual chains, 11 of the 12 have acceptance rates between 0.47 and 0.93 and explore the posterior normally. Chain 6 drifted into a high-curvature region where the fixed leapfrog parameters broke down (acceptance 0.286), and at least one chain wandered into the prior tail at large P2 and got stuck. The 88-day standard deviation is from one or two pathological chains contaminating the pool. FlowMC drops P2 std to 3.15 days and produces a much cleaner posterior — not because each individual chain mixes dramatically better, but because 24 chains plus occasional global proposals gives enough redundancy that a few bad chains don't dominate.
+**On the MCMC comparison:** HMC's pooled P2 posterior has a standard deviation of 88 days, which looks absurd. Looking at the individual chains, 11 of the 12 have acceptance rates between 0.47 and 0.93 and explore the posterior normally. Chain 6 drifted into a high-curvature region where the fixed leapfrog parameters broke down (acceptance 0.286), and at least one chain wandered into the prior tail at large P2 and got stuck. The 88-day standard deviation is from one or two pathological chains contaminating the pool. FlowMC drops P2 std to 3.15 days and produces a much cleaner posterior, not because each individual chain mixes dramatically better, but because 24 chains plus occasional global proposals gives enough redundancy that a few bad chains don't dominate.
 
 <div align="center">
   <img src="assets/rv_fit_themed.png" width="700"/>
