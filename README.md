@@ -30,7 +30,7 @@ The data loads directly from the RadVel GitHub in both the notebook and `cross_m
 
 <div align="center">
   <img src="assets/chains_comparison.gif" width="700"/>
-  <br><em>HMC chains (top) vs FlowMC chains (bottom) exploring the P1–P2 posterior.</em>
+  <br><em>HMC chains (left) vs FlowMC chains (right) exploring the P1–P2 posterior.</em>
 </div>
 
 ---
