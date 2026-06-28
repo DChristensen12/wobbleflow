@@ -1,10 +1,11 @@
 # wobbleflow
 
+K2-24 (EPIC 203771098) is a star about 530 light-years away hosting two confirmed planets. The California Planet Search team measured its radial velocity 32 times with Keck/HIRES, and those measurements are the data this whole project is built around. The goal is straightforward: given the wobble of the star, figure out the orbital parameters of both planets, and then compare four different ways of doing that inference.
+
 <div align="center">
   <img src="assets/K2-24_Artistic_Picture.png" width="600"/>
 </div>
-
-K2-24 (EPIC 203771098) is a star about 530 light-years away hosting two confirmed planets. The California Planet Search team measured its radial velocity 32 times with Keck/HIRES, and those measurements are the data this whole project is built around. The goal is straightforward: given the wobble of the star, figure out the orbital parameters of both planets, and then compare four different ways of doing that inference.
+<p align="center"><b>Artistic Rendition of the  K2-24 System</b></p>
 
 The four methods are Hamiltonian Monte Carlo, mean-field variational inference, normalizing flow-based variational inference (planar normalizing flows, following Rezende & Mohamed 2015), and flow-augmented markov chain monte carlo (Real-NVP coupled with MALA, following Gabrié et al. 2022). Each method targets the same 12-dimensional posterior. The comparison is about what you gain when you add a normalizing flow to each respective baseline.
 
