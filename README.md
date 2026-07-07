@@ -52,13 +52,17 @@ Neither VI method captures multimodality. HMC's P1 histogram shows secondary pea
 
 **On the MCMC comparison:** HMC's pooled P2 posterior has a standard deviation of 88 days, which looks absurd. Looking at the individual chains, 11 of the 12 have acceptance rates between 0.47 and 0.93 and explore the posterior normally. Chain 6 drifted into a high-curvature region where the fixed leapfrog parameters broke down (acceptance 0.286), and at least one chain wandered into the prior tail at large P2 and got stuck. The 88-day standard deviation is from one or two pathological chains contaminating the pool. FlowMC drops P2 std to 3.15 days and produces a much cleaner posterior, not because each individual chain mixes dramatically better, but because 24 chains plus occasional global proposals gives enough redundancy that a few bad chains don't dominate.
 
+</br>
+
 <div align="center">
   <img src="assets/rv_fit_themed.png" width="700"/>
   <br><em>Posterior-mean RV fits from all four methods overlaid on the K2-24 data.</em>
 </div>
 
+</br>
+
 <div align="center">
-  <img src="assets/period_posteriors.png" width="600"/>
+  <img src="assets/period_posteriors.png" width="700"/>
   <br><em>P1 and P2 marginal posteriors across all four methods.</em>
 </div>
 
