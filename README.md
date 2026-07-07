@@ -1,5 +1,9 @@
 # wobbleflow
 
+<div align="center">
+  <img src="assets/wobbleflow_logo.png"/>
+</div>
+
 K2-24 (EPIC 203771098) is a star about 530 light-years away hosting two confirmed planets. The California Planet Search team measured its radial velocity 32 times with Keck/HIRES, and those measurements are the data this whole project is built around. The goal is straightforward: given the wobble of the star, figure out the orbital parameters of both planets, and then compare four different ways of doing that inference.
 
 <div align="center">
