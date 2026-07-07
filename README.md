@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/wobbleflow_logo.png", width = "100%"/>
+  <img src="assets/wobbleflow_logo.png" alt = "wobbleflow" width = "100%"/>
 </div>
 
 </br>
