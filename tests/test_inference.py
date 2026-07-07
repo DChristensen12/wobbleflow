@@ -16,10 +16,6 @@ from src.inference.vi_meanfield import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Hamiltonian Monte Carlo
-# ---------------------------------------------------------------------------
-
 class TestHMC:
     def test_potential_and_grad_shapes(self, lp_eta_fn, eta0):
         U, grad = potential_and_grad(eta0, lp_eta_fn)
@@ -94,10 +90,6 @@ class TestHMC:
         assert all(0.0 <= a <= 1.0 for a in all_acc)
 
 
-# ---------------------------------------------------------------------------
-# Mean-field variational inference
-# ---------------------------------------------------------------------------
-
 class TestMeanFieldVI:
     def test_gaussian_entropy_scalar_formula(self):
         """For D=1: H = 0.5*(1 + log(2π)) + log_s."""
@@ -150,10 +142,6 @@ class TestMeanFieldVI:
         assert torch.allclose(samples.mean(0), mu, atol=0.05)
 
 
-# ---------------------------------------------------------------------------
-# Flow-based variational inference
-# ---------------------------------------------------------------------------
-
 class TestFlowVI:
     def test_planar_layers_satisfy_invertibility_at_init(self):
         """All layers satisfy w^T u_hat >= -1 at initialization (from cell 55)."""
@@ -196,10 +184,6 @@ class TestFlowVI:
             assert log_q.shape == (4,)
 
 
-# ---------------------------------------------------------------------------
-# FlowMC
-# ---------------------------------------------------------------------------
-
 class TestFlowMC:
     def test_log_post_and_grad_shapes(self, lp_eta_fn, eta0):
         lp, grad = log_post_and_grad(eta0, lp_eta_fn)
@@ -222,7 +206,7 @@ class TestFlowMC:
         assert isinstance(accepted, bool)
 
     def test_mala_step_tiny_tau_high_acceptance(self, lp_eta_fn, eta0):
-        """Very small step size → virtually all proposals accepted."""
+        """Very small step size, so almost every proposal should get accepted."""
         n_accepted = 0
         eta = eta0.clone()
         for seed in range(20):

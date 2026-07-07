@@ -11,8 +11,7 @@ import torch
 from torch import Tensor
 from .priors import log_posterior_two_planet
 
-# Per-coordinate centers and scales — eta = 0 puts every parameter at the
-# K2 transit-derived value.
+# per-coordinate centers and scales; eta = 0 puts every parameter at its K2 transit-derived value
 P1_LOG_MEAN,     P1_LOG_SCALE    = math.log(20.89), 0.3
 P2_LOG_MEAN,     P2_LOG_SCALE    = math.log(42.36), 0.3
 TP_NORM_CENTER,  TP_NORM_SCALE   = 2400.0, 50.0
@@ -53,29 +52,25 @@ def eta_to_theta(eta: Tensor):
 def log_jacobian(eta: Tensor) -> Tensor:
     """Log |det d(prior-variable) / d eta| for the change of variables.
 
-    Per-coordinate breakdown:
-      - Period: prior is on log P, so the change of variables runs from eta
-        to log P. d(log P)/d eta = P_LOG_SCALE  ->  log term log(P_LOG_SCALE).
-      - tp: affine in eta with slope TP_NORM_SCALE.
-        log term log(TP_NORM_SCALE).
-      - Eccentricity: e = sigmoid(eta * E_LOGIT_SCALE + ...).
-        d e / d eta = E_LOGIT_SCALE * e * (1 - e).
-        log term log(E_LOGIT_SCALE) + log(e) + log(1-e).
-      - omega: identity, log term 0.
-      - K: K = exp(eta + K_LOG_MEAN), so d K / d eta = K.
-        log term log(K) = eta + K_LOG_MEAN.
-      - v0: affine with slope V0_NORM_SCALE.
-        log term log(V0_NORM_SCALE).
-      - log-jitter: affine with slope LOG_JIT_NORM_SCALE.
-        log term log(LOG_JIT_NORM_SCALE).
+    Coordinate by coordinate:
+      - Period: prior is on log P, so eta maps to log P. d(log P)/d eta = P_LOG_SCALE,
+        giving log term log(P_LOG_SCALE).
+      - tp: affine in eta with slope TP_NORM_SCALE, log term log(TP_NORM_SCALE).
+      - Eccentricity: e = sigmoid(eta * E_LOGIT_SCALE + ...), so
+        d e / d eta = E_LOGIT_SCALE * e * (1 - e), giving log term
+        log(E_LOGIT_SCALE) + log(e) + log(1-e).
+      - omega: identity map, contributes 0.
+      - K: K = exp(eta + K_LOG_MEAN), so d K / d eta = K, log term eta + K_LOG_MEAN.
+      - v0: affine with slope V0_NORM_SCALE, log term log(V0_NORM_SCALE).
+      - log-jitter: affine with slope LOG_JIT_NORM_SCALE, log term log(LOG_JIT_NORM_SCALE).
     """
-    # Periods: prior on log P, Jacobian is just log(P_LOG_SCALE)
+    # periods: prior is on log P, so the Jacobian is just log(P_LOG_SCALE)
     jac = math.log(P1_LOG_SCALE) + math.log(P2_LOG_SCALE)
 
-    # Times of periastron: affine
+    # times of periastron: affine
     jac = jac + math.log(TP_NORM_SCALE) + math.log(TP_NORM_SCALE)
 
-    # Eccentricities: scaled logit, sigmoid derivative is e * (1-e)
+    # eccentricities: scaled logit, sigmoid derivative is e * (1-e)
     e1_logit = eta[2] * E_LOGIT_SCALE + E_LOGIT_MEAN
     e2_logit = eta[7] * E_LOGIT_SCALE + E_LOGIT_MEAN
     e1 = torch.sigmoid(e1_logit)
@@ -84,12 +79,12 @@ def log_jacobian(eta: Tensor) -> Tensor:
     jac = jac + torch.log(e1) + torch.log1p(-e1)
     jac = jac + torch.log(e2) + torch.log1p(-e2)
 
-    # Omega: identity, contributes 0
+    # omega: identity, contributes nothing
 
-    # Semi-amplitudes: prior is on K, Jacobian is log(K) = eta + K_LOG_MEAN
+    # semi-amplitudes: prior is on K, so the Jacobian is log(K) = eta + K_LOG_MEAN
     jac = jac + (eta[4] + K1_LOG_MEAN) + (eta[9] + K2_LOG_MEAN)
 
-    # Systemic velocity and log-jitter: affine
+    # systemic velocity and log-jitter: both affine
     jac = jac + math.log(V0_NORM_SCALE) + math.log(LOG_JIT_NORM_SCALE)
 
     return jac

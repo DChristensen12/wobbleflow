@@ -1,5 +1,3 @@
-# Hamiltonian Monte Carlo with leapfrog integration.
-
 from __future__ import annotations
 from typing import Callable, Optional, Tuple
 import torch
@@ -8,9 +6,9 @@ from torch import Tensor
 
 def potential_and_grad(eta: Tensor,
                        log_post_fn: Callable[[Tensor], Tensor]) -> Tuple[Tensor, Tensor]:
-    """Computes U(eta) = -log pi(eta) and its gradient via autograd.
-    log_post_fn must be differentiable in eta. We detach at the end so the
-    returned tensors don't carry the autograd graph forward.
+    """U(eta) = -log pi(eta) and its gradient, via autograd.
+    log_post_fn needs to be differentiable in eta. We detach at the end so
+    these tensors don't drag the autograd graph along with them.
     """
     eta = eta.detach().clone().requires_grad_(True)
     U = -log_post_fn(eta)
@@ -21,17 +19,16 @@ def potential_and_grad(eta: Tensor,
 def hmc_step(eta_current: Tensor,
              log_post_fn: Callable[[Tensor], Tensor],
              epsilon: float, L: int) -> Tuple[Tensor, bool, float]:
-    """One HMC transition: sample momentum, leapfrog L steps, Metropolis-correct.
-    Returns (new_state, accepted, U_value). The momentum negation at the end
-    of the integrator doesn't affect acceptance but makes the proposal map
-    an involution, which is standard.
+    """One HMC transition: sample momentum, leapfrog L steps, then Metropolis-correct.
+    Returns (new_state, accepted, U_value). Flipping the momentum at the end
+    doesn't change the acceptance math, it just makes the proposal map an
+    involution, which is the standard trick for these things.
     """
     eta = eta_current.detach().clone()
     v = torch.randn_like(eta)
     U_curr, grad_curr = potential_and_grad(eta, log_post_fn)
     K_curr = 0.5 * torch.sum(v ** 2)
 
-    # Leapfrog integration
     eta_new = eta.clone()
     v_new = v - 0.5 * epsilon * grad_curr
 
@@ -43,7 +40,7 @@ def hmc_step(eta_current: Tensor,
             v_new = v_new - epsilon * grad_new
 
     v_new = v_new - 0.5 * epsilon * grad_new
-    v_new = -v_new  # Flip momentum for reversibility
+    v_new = -v_new  # flip so the proposal map is an involution
 
     K_new = 0.5 * torch.sum(v_new ** 2)
     log_alpha = U_curr + K_curr - U_new - K_new
@@ -59,17 +56,15 @@ def run_hmc_chain(eta_init: Tensor,
                   n_burnin: int = 500,
                   chain_id: Optional[int] = None,
                   verbose: bool = False) -> Tuple[Tensor, float]:
-    """Runs a single HMC chain and return (samples, accept_rate).
-    Burn-in samples are not stored; they're just for the chain to forget
-    its initial point.
+    """Runs a single HMC chain, returns (samples, accept_rate).
+    Burn-in samples aren't kept, they're just there to let the chain forget
+    where it started.
     """
     eta = eta_init.detach().clone()
 
-    # Burn-in phase
     for i in range(n_burnin):
         eta, accepted, U_val = hmc_step(eta, log_post_fn, epsilon, L)
 
-    # Sampling phase
     samples = torch.empty((n_samples, eta.numel()))
     n_accept = 0
 
@@ -92,9 +87,9 @@ def run_hmc_multichain(eta_init: Tensor,
                        n_chains: int, n_samples: int,
                        epsilon: float, L: int, n_burnin: int = 500,
                        verbose: bool = True) -> Tuple[list, list]:
-    """Runs n_chains independent HMC chains and return per-chain results.
-    Each chain gets its own random seed and starts at the same eta_init.
-    Caller is responsible for combining and label-sorting the chains.
+    """Runs n_chains independent HMC chains, returns the per-chain results.
+    Each chain gets its own seed but starts from the same eta_init. Combining
+    and label-sorting the chains afterward is on the caller.
     """
     all_samples = []
     all_accept_rates = []

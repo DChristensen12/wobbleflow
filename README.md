@@ -27,13 +27,13 @@ The data loads directly from the RadVel GitHub in both the notebook and `cross_m
 
 ## Methods
 
-**Hamiltonian Monte Carlo** -- leapfrog integrator with MH correction, run across 12 parallel chains. Each chain starts at eta=0 (which maps exactly to the K2 transit configuration). Burn-in is 300 steps per chain, then 500 samples each.
+**Hamiltonian Monte Carlo (`hmc.py`)**: leapfrog integrator with MH correction, run across 12 parallel chains. Each chain starts at eta=0 (which maps exactly to the K2 transit configuration). Burn-in is 300 steps per chain, then 500 samples each.
 
-**Mean-field VI** -- diagonal Gaussian variational family, ELBO maximized with Adam and cosine LR decay. Converges quickly but can't represent parameter correlations by construction.
+**Mean-field Variational Inference (`vi_meanfield.py`)**: Diagonal Gaussian variational family, ELBO maximized with Adam and cosine LR decay. Converges quickly but can't represent parameter correlations by construction.
 
-**Flow VI** -- same diagonal Gaussian base, but 8 planar layers push it into a richer family. Slower to train and the ELBO improvement is real (~4 nats over mean-field), though the marginal histograms look almost identical. The difference is in the joint distribution, not the marginals.
+**Normalizing Flow Variational Inference (`vi_flow.py`)**: Diagonal Gaussian base, but 8 planar layers push it into a richer family. Slower to train and the ELBO improvement is real (~4 nats over mean-field), though the marginal histograms look almost identical. The difference is in the joint distribution, not the marginals.
 
-**FlowMC** -- 24 parallel MALA chains with a Real-NVP flow trained concurrently on the chain history. The flow proposes global jumps; MALA handles local exploration. After a 50-step warmup the flow starts making proposals, and even a global acceptance rate of ~0.02 is enough to make a meaningful difference in robustness.
+**Normalizing Flow Monte Carlo (`flowmc.py`)**: 24 parallel MALA chains with a Real-NVP flow trained concurrently on the chain history. The flow proposes global jumps; MALA handles local exploration. After a 50-step warmup the flow starts making proposals, and even a global acceptance rate of ~0.02 is enough to make a meaningful difference in robustness.
 
 <div align="center">
   <img src="assets/chains_comparison.gif" width="700"/>
@@ -46,7 +46,7 @@ The data loads directly from the RadVel GitHub in both the notebook and `cross_m
 
 All four methods agree on the posterior mode: P1 around 20.4–20.5 days, P2 around 41–41.5 days, both within about half a day of the transit values. The interesting differences are in how they characterize uncertainty.
 
-**On the VI comparison:** the headline claim from Rezende & Mohamed is that flows give a strictly better approximation than mean-field, and the ELBOs back this up. What's subtle is that the marginal period histograms look nearly identical between the two methods. The flow's gain comes from modeling joint correlations between parameters (period-eccentricity, period-amplitude), not from changing the marginals. If you evaluated this comparison by eyeballing histograms you'd conclude the flow barely helped, the ELBO is the honest diagnostic.
+**On the Variational Inference comparison:** the headline claim from Rezende & Mohamed is that flows give a strictly better approximation than mean-field, and the ELBOs back this up. What's subtle is that the marginal period histograms look nearly identical between the two methods. The flow's gain comes from modeling joint correlations between parameters (period-eccentricity, period-amplitude), not from changing the marginals. If you evaluated this comparison by eyeballing histograms you'd conclude the flow barely helped, the ELBO is the honest diagnostic.
 
 Neither VI method captures multimodality. HMC's P1 histogram shows secondary peaks at aliased periods around 10 and 15 days; both VI posteriors are clean unimodals at the dominant mode. Planar flows are local deformations of a single Gaussian, not architectures that can span well-separated modes. That's a known limitation, not a bug.
 
@@ -64,7 +64,7 @@ Neither VI method captures multimodality. HMC's P1 histogram shows secondary pea
 
 ---
 
-## Layout
+## Project Layout
 
 ```
 wobbleflowfolder/
@@ -95,13 +95,13 @@ The notebook and the scripts are the same code. The notebook is for interactive 
 
 ---
 
-## Running It
+## Running wobbleflow
 
 ```bash
 pip install -r requirements.txt
 ```
 
-**Notebook** (interactive, it has in depth math explanations and you can use it for exploration):
+**Notebook** (interactive option, it also has in depth math explanations and you can use it for exploration):
 ```bash
 jupyter notebook notebooks/wobbleflow.ipynb
 ```

@@ -1,5 +1,3 @@
-# Adaptive Markov Chain Monte Carlo augmented with normalizing flows.
-
 from __future__ import annotations
 import math
 from typing import Callable, Tuple
@@ -10,7 +8,7 @@ from src.flows.realnvp import RealNVP
 
 def log_post_and_grad(eta: Tensor,
                       log_post_fn: Callable[[Tensor], Tensor]) -> Tuple[Tensor, Tensor]:
-    """log pi(eta) and its gradient. MALA needs grad log pi directly, not -grad U."""
+    """log pi(eta) and its gradient. MALA wants grad log pi directly, not -grad U like HMC does."""
     eta = eta.detach().clone().requires_grad_(True)
     log_pi = log_post_fn(eta)
     grad = torch.autograd.grad(log_pi, eta)[0]
@@ -21,8 +19,8 @@ def mala_step(eta: Tensor,
               log_post_fn: Callable[[Tensor], Tensor],
               tau: float) -> Tuple[Tensor, bool]:
     """One Metropolis-adjusted Langevin step.
-    Proposal: y = x + (tau/2) grad log pi(x) + sqrt(tau) * N(0,I).
-    Acceptance: MH ratio that accounts for the asymmetric proposal density.
+    Proposal is y = x + (tau/2) grad log pi(x) + sqrt(tau) * N(0,I), and we
+    accept with the MH ratio that corrects for the proposal being asymmetric.
     """
     eta = eta.detach().clone()
     log_pi_curr, grad_curr = log_post_and_grad(eta, log_post_fn)
@@ -41,12 +39,11 @@ def mala_step(eta: Tensor,
 def flow_proposal_step(eta: Tensor,
                        log_post_fn: Callable[[Tensor], Tensor],
                        flow: RealNVP) -> Tuple[Tensor, bool]:
-    """Independence MH step using the flow as the proposal distribution.
-    Draws y from the flow's pushforward, evaluates the flow density at both
-    the current state x and the proposal y, then accepts with the ratio
-    pi(y) * rho_hat(x) / (pi(x) * rho_hat(y)). When the flow is well-tuned
-    to the target, this proposal makes long, non-local jumps between modes
-    that local MALA cannot reach.
+    """Independence MH step using the flow itself as the proposal distribution.
+    Draw y from the flow's pushforward, evaluate the flow density at both the
+    current state x and the proposal y, then accept with pi(y) * rho_hat(x) /
+    (pi(x) * rho_hat(y)). When the flow has actually learned the target well,
+    this lets us jump between modes in one shot, something MALA can't do on its own.
     """
     with torch.no_grad():
         log_pi_curr = log_post_fn(eta)
@@ -71,16 +68,15 @@ def run_flowmc(eta_inits: Tensor,
                flow_warmup: int = 20,
                buffer_size: int = 2000,
                verbose: bool = False):
-    """Adaptive flow-MCMC. Each outer iteration:
+    """Adaptive flow-MCMC. Each outer iteration runs n_local_per_global MALA
+    sweeps per chain for local exploration, then, once we're past flow_warmup
+    steps, one flow proposal per chain for the big cross-mode jumps. After that
+    we take one Adam step training the flow against the last buffer_size chain
+    states, kept as a rolling FIFO so training doesn't just chase whatever the
+    chains look like at this exact instant.
 
-    1. n_local_per_global MALA sweeps per chain (local within-mode exploration).
-    2. After flow_warmup outer steps, one flow proposal per chain.
-    3. One Adam step on the flow's negative-log-likelihood loss against the
-       last buffer_size chain states. The buffer is a rolling FIFO that
-       smooths the training signal compared to using only the current state.
-
-    Returns the full per-step chain history, the flow loss history, and the
-    cumulative MALA / flow acceptance rates.
+    Returns the full per-step chain history, the flow's loss history, and the
+    running MALA and flow acceptance rates.
     """
     n_chains = eta_inits.shape[0]
     chains = eta_inits.detach().clone()
@@ -92,22 +88,19 @@ def run_flowmc(eta_inits: Tensor,
     n_glob_acc = n_glob_try = 0
 
     for step in range(n_iter):
-        # Local MALA sweeps
         for _ in range(n_local_per_global):
             for c in range(n_chains):
                 chains[c], a = mala_step(chains[c], log_post_fn, mala_tau)
                 n_loc_acc += int(a); n_loc_try += 1
-        # Global flow proposals after the warmup
         if step >= flow_warmup:
             for c in range(n_chains):
                 chains[c], a = flow_proposal_step(chains[c], log_post_fn, flow)
                 n_glob_acc += int(a); n_glob_try += 1
-        # Appends to the training buffer (rolling FIFO)
         buffer.append(chains.detach().clone())
         if len(buffer) * n_chains > buffer_size:
-            buffer.pop(0)
+            buffer.pop(0)  # drop the oldest batch once we're over the buffer cap
         train_batch = torch.cat(buffer, dim=0)
-        # One gradient step on the flow loss (negative log-likelihood of buffer)
+        # flow loss is just negative log-likelihood of the buffer under the flow
         opt.zero_grad()
         loss = -flow.log_q(train_batch).mean()
         loss.backward()

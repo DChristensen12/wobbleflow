@@ -1,14 +1,12 @@
-# Markov Chain Monte Carlo diagnostics: autocorrelation and effective sample size.
-
 from __future__ import annotations
 from typing import Optional
 import numpy as np
 
 
 def autocorr_1d(x: np.ndarray, max_lag: Optional[int] = None) -> np.ndarray:
-    """Samples autocorrelation of a 1D chain at lags 0..max_lag-1.
-    Default max_lag is N/4, which is a common practical compromise between
-    seeing the autocorrelation decay and avoiding the noisy tail.
+    """Sample autocorrelation of a 1D chain at lags 0 through max_lag-1.
+    If you don't pass max_lag it defaults to N/4, which is a decent compromise:
+    enough lags to see the decay without getting into the noisy tail.
     """
     x = np.asarray(x, dtype=float)
     x = x - x.mean()
@@ -24,8 +22,8 @@ def autocorr_1d(x: np.ndarray, max_lag: Optional[int] = None) -> np.ndarray:
 
 def ess_1d(x: np.ndarray) -> float:
     """Effective sample size for a 1D MCMC chain.
-    Sums the autocorrelations up to the first negative lag (initial monotone
-    sequence truncation), then applies ESS = N / (1 + 2 sum rho_k).
+    Sums the autocorrelations up to the first negative lag (the usual initial
+    monotone sequence trick), then plugs into ESS = N / (1 + 2 sum rho_k).
     """
     rho = autocorr_1d(x, max_lag=min(len(x) // 4, 500))
     neg_idx = np.argmax(rho < 0)

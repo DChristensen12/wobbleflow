@@ -7,10 +7,6 @@ import pytest
 from src.diagnostics.ess import autocorr_1d, ess_1d, posterior_summary
 
 
-# ---------------------------------------------------------------------------
-# Autocorrelation
-# ---------------------------------------------------------------------------
-
 class TestAutocorr1d:
     def test_lag_zero_is_one(self):
         """rho[0] must be exactly 1 by definition."""
@@ -51,10 +47,6 @@ class TestAutocorr1d:
         assert rho[1] < -0.9
 
 
-# ---------------------------------------------------------------------------
-# Effective sample size
-# ---------------------------------------------------------------------------
-
 class TestESS1d:
     def test_iid_ess_near_n(self):
         """ESS of an iid chain should be at least 50% of N."""
@@ -78,7 +70,7 @@ class TestESS1d:
         assert ess_1d(x) <= 100
 
     def test_ess_decreases_with_more_autocorrelation(self):
-        """Higher AR coefficient → lower ESS."""
+        """Higher AR coefficient means lower ESS."""
         rng = np.random.default_rng(1)
         n = 500
 
@@ -92,10 +84,6 @@ class TestESS1d:
 
         assert ess_1d(x_low) > ess_1d(x_high)
 
-
-# ---------------------------------------------------------------------------
-# Posterior summary
-# ---------------------------------------------------------------------------
 
 class TestPosteriorSummary:
     def test_required_keys_present(self):

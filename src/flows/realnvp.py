@@ -1,5 +1,3 @@
-# Real-valued Non-Volume Preserving coupling-layer flow used by Normalizing Flow-Markov Chain Monte Carlo.
-
 from __future__ import annotations
 import math
 import torch
@@ -9,17 +7,16 @@ from torch import Tensor
 
 class CouplingLayer(nn.Module):
     """One Real-NVP coupling layer with a fixed binary mask.
-    The masked half of the input is passed through unchanged; the unmasked
-    half gets an affine transformation whose scale and shift are computed
-    from the masked half. The Jacobian is triangular so log|det| is just
-    the sum of the (1 - mask)-weighted scale outputs.
+    The masked half of the input passes through untouched. The unmasked half
+    gets an affine transform whose scale and shift come from the masked half.
+    That makes the Jacobian triangular, so log|det| is just the sum of the
+    (1 - mask)-weighted scale outputs.
     """
 
     def __init__(self, D: int, mask: Tensor, hidden: int = 64):
         super().__init__()
         self.register_buffer("mask", mask)
-        """Two small MLPs. The final tanh on s_net bounds the scale output,
-           which empirically helps stability early in training"""
+        # two small MLPs; the tanh at the end of s_net bounds the scale output, keeps things stable early in training
         self.s_net = nn.Sequential(
             nn.Linear(D, hidden), nn.Tanh(),
             nn.Linear(hidden, hidden), nn.Tanh(),
@@ -31,9 +28,8 @@ class CouplingLayer(nn.Module):
             nn.Linear(hidden, D),
         )
 
-        """Zero out the final Linear of each net so each layer starts as the
-           identity. s_net ends with Tanh (its last Linear is at -2); t_net
-           ends with Linear at -1."""
+        # zero the last Linear in each net so the layer starts as the identity
+        # (s_net's last Linear sits at index -2 since it's followed by Tanh; t_net's is at -1)
         nn.init.zeros_(self.s_net[-2].weight)
         nn.init.zeros_(self.s_net[-2].bias)
         nn.init.zeros_(self.t_net[-1].weight)

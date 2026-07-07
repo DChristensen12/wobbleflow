@@ -1,5 +1,3 @@
-# Plotting helpers shared across the four inference methods.
-
 from __future__ import annotations
 from typing import Tuple
 import numpy as np
@@ -11,9 +9,8 @@ def plot_per_method_panels(history, history_label: str,
                            p1_samples: np.ndarray, p2_samples: np.ndarray,
                            method_name: str,
                            hist_color_p1: str = "C1", hist_color_p2: str = "C2"):
-    """Standard 1x3 panel: training metric + P1 posterior + P2 posterior.
-    Used by every method's individual cell so the comparison is visually
-    consistent.
+    """1x3 panel: training metric on the left, then P1 and P2 posteriors.
+    Every method uses this same layout so the plots are easy to compare side by side.
     """
     p1 = posterior_summary(p1_samples)
     p2 = posterior_summary(p2_samples)
@@ -50,9 +47,9 @@ def plot_per_method_panels(history, history_label: str,
 
 def plot_period_posteriors(samples_dict: dict,
                            transit_truth: Tuple[float, float] = (20.89, 42.36)):
-    """Stacked histogram of P1 and P2 posteriors from all methods on one axis.
-    samples_dict : {method_name: theta_samples_array}. Periods are at indices
-    0 (P1) and 5 (P2) in the theta layout.
+    """Overlaid histograms of P1 and P2 posteriors, one line per method.
+    samples_dict maps method name to its theta samples array. P1 lives at index 0,
+    P2 at index 5, per the usual theta layout.
     """
     bins_P1 = np.linspace(15, 28, 60)
     bins_P2 = np.linspace(35, 50, 60)
@@ -78,8 +75,8 @@ def plot_period_posteriors(samples_dict: dict,
 def plot_rv_with_models(t_obs: np.ndarray, rv_obs: np.ndarray, rv_err: np.ndarray,
                         t_dense: np.ndarray, models: dict,
                         title: str = "K2-24 RV data and posterior-mean models"):
-    """RV data with overlaid posterior-mean RV curves from each method.
-    models : {method_name: rv_curve_array}, each curve aligned to t_dense.
+    """RV data with each method's posterior-mean curve drawn on top.
+    models maps method name to an rv curve array, each aligned to t_dense.
     """
     fig, ax = plt.subplots(figsize=(11, 4))
     ax.errorbar(t_obs, rv_obs, yerr=rv_err, fmt=".k", capsize=2, label="K2-24 RV data")
@@ -93,7 +90,7 @@ def plot_rv_with_models(t_obs: np.ndarray, rv_obs: np.ndarray, rv_err: np.ndarra
     return fig, ax
 
 
-# Themed color palettes for Looks
+# color scheme per method, just for visual consistency across figures
 THEMED_PALETTES = {
     "HMC": {
         "line":      "#3FA34D",
@@ -120,10 +117,9 @@ THEMED_PALETTES = {
 
 def plot_themed_rv_fits(t_obs: np.ndarray, rv_obs: np.ndarray, rv_err: np.ndarray,
                         t_dense: np.ndarray, models: dict):
-    """Themed RV plot: each method gets a coordinated color palette.
-    The data points are shown four times (one per method) so each method's
-    markers carry that method's themed fill and edge color. This makes it
-    easy to see at a glance which curve goes with which marker set.
+    """Same RV plot as plot_rv_with_models, but split into a 2x2 grid with each method's own color theme.
+    The data gets replotted in every panel so the markers can carry that method's
+    fill and edge color, makes it easy to tell curve and marker set apart at a glance.
     """
     fig, axes = plt.subplots(2, 2, figsize=(13, 8))
     for ax, (name, curve) in zip(axes.flat, models.items()):

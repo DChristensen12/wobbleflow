@@ -1,7 +1,8 @@
-""" Note: This has smooth priors with no hard boundaries. Variational inference samples from
-    an unbounded Gaussian family, so any uniform prior with a sharp cutoff would
-    hand back -inf gradients the moment the variational distribution crossed
-    the boundary; we use broad Normal/half-Normal/Beta priors throughout.
+"""
+Every prior here is smooth, no hard boundaries anywhere. VI samples from an
+unbounded Gaussian family, so a uniform prior with a sharp cutoff would hand
+back -inf gradients the moment the variational distribution wandered across
+the edge. That's why it's all broad Normal, half-Normal, and Beta priors below.
 """
 
 from __future__ import annotations
@@ -46,11 +47,10 @@ def _log_normal_log_period(P: Tensor) -> Tensor:
 
 def _log_beta(x: Tensor, a: float, b: float) -> Tensor:
     """Log Beta(a, b) density at x.
-    This clamps x strictly inside (eps, 1-eps) so the backward pass never hits
-    log(0). Earlier versions used torch.where(in_range, val, -inf), but
-    that pattern leaks NaN gradients through the masked branch and kills
-    flow VI as soon as the planar layers push eta to a region where
-    sigmoid saturates to exactly 1.0 in float32.
+    Clamps x strictly inside (eps, 1-eps) so the backward pass never hits log(0).
+    Used to do this with torch.where(in_range, val, -inf), but that leaks NaN
+    gradients through the masked branch and kills flow VI the moment the planar
+    layers push eta somewhere the sigmoid saturates to exactly 1.0 in float32.
     """
     eps = 1e-6
     x_safe = x.clamp(min=eps, max=1.0 - eps)
@@ -67,13 +67,13 @@ def _log_half_normal(x: Tensor, scale: float) -> Tensor:
 
 
 def log_prior_two_planet(theta: Tensor, log_jitter: Tensor) -> Tensor:
-    """This is sum of independent log-priors on the orbital parameters.
-    theta : 11-vector with layout [P1, tp1, e1, w1, K1, P2, tp2, e2, w2, K2, v0].
-    log_jitter : scalar log-jitter in m/s.
+    """Sum of the independent log-priors on the orbital parameters.
+    theta is an 11-vector laid out as [P1, tp1, e1, w1, K1, P2, tp2, e2, w2, K2, v0].
+    log_jitter is the scalar log-jitter in m/s.
 
-    Note: omega1 and omega2 carry no explicit prior: the RV likelihood
-    is 2*pi periodic in omega, so an improper uniform prior on R is
-    equivalent to a constant and drops out of the unnormalized posterior.
+    omega1 and omega2 don't get an explicit prior: the RV likelihood is 2*pi
+    periodic in omega, so an improper uniform prior on R is just a constant
+    and drops out of the unnormalized posterior anyway.
     """
     P1, tp1, e1, _w1, K1 = theta[0], theta[1], theta[2], theta[3], theta[4]
     P2, tp2, e2, _w2, K2 = theta[5], theta[6], theta[7], theta[8], theta[9]

@@ -25,10 +25,6 @@ from src.orbits.transforms import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Kepler equation
-# ---------------------------------------------------------------------------
-
 class TestSolveKeplerEquation:
     def test_circular_orbit_E_equals_M(self):
         """When e=0, E=M exactly (circular orbit, one Newton step converges)."""
@@ -38,7 +34,7 @@ class TestSolveKeplerEquation:
         assert torch.allclose(E, torch.remainder(M + math.pi, 2 * math.pi) - math.pi, atol=1e-8)
 
     def test_zero_mean_anomaly_gives_zero_E(self):
-        """M=0 → E=0 for any eccentricity."""
+        """M=0 gives E=0, for any eccentricity."""
         M = torch.zeros(5, dtype=torch.float64)
         e = torch.tensor([0.0, 0.1, 0.3, 0.5, 0.8], dtype=torch.float64)
         E = solve_kepler_equation(M, e)
@@ -84,10 +80,6 @@ class TestTrueAnomaly:
         assert true_anomaly(M, e).shape == (6,)
 
 
-# ---------------------------------------------------------------------------
-# RV model
-# ---------------------------------------------------------------------------
-
 class TestRVModel:
     def test_zero_amplitude_gives_zero_rv(self):
         t = torch.linspace(2350.0, 2450.0, 10, dtype=torch.float64)
@@ -118,10 +110,6 @@ class TestRVModel:
         )
         assert rv_model_two_planet(t, theta).shape == t.shape
 
-
-# ---------------------------------------------------------------------------
-# Log-likelihood
-# ---------------------------------------------------------------------------
 
 class TestLogLikelihood:
     def _default_inputs(self):
@@ -162,10 +150,6 @@ class TestLogLikelihood:
         assert ll_exact > ll_wrong
 
 
-# ---------------------------------------------------------------------------
-# Priors
-# ---------------------------------------------------------------------------
-
 class TestPriors:
     def _transit_theta(self):
         return torch.tensor(
@@ -198,10 +182,6 @@ class TestPriors:
         )
         assert lp.isfinite()
 
-
-# ---------------------------------------------------------------------------
-# Transforms / reparameterization
-# ---------------------------------------------------------------------------
 
 class TestTransforms:
     def test_eta_zero_maps_to_transit_periods(self):
@@ -269,7 +249,7 @@ class TestTransforms:
         torch.manual_seed(0)
         theta = torch.rand(100, 12, dtype=torch.float64)
         theta[:, 0] = theta[:, 0] * 50 + 1    # P1 in [1, 51]
-        theta[:, 5] = theta[:, 5] * 50 + 1    # P2 in [1, 51]  — may have P1 > P2
+        theta[:, 5] = theta[:, 5] * 50 + 1    # P2 in [1, 51], may end up less than P1
         sorted_theta = sort_planets_by_period(theta)
         assert (sorted_theta[:, 0] <= sorted_theta[:, 5]).all()
 
@@ -282,7 +262,7 @@ class TestTransforms:
 
     def test_sort_planets_swapped_rows_are_corrected(self):
         theta = torch.zeros(2, 12, dtype=torch.float64)
-        theta[0, 0] = 40.0; theta[0, 5] = 10.0   # P1 > P2 — needs swap
+        theta[0, 0] = 40.0; theta[0, 5] = 10.0   # P1 > P2, needs a swap
         theta[1, 0] = 10.0; theta[1, 5] = 40.0   # already sorted
         sorted_theta = sort_planets_by_period(theta)
         assert float(sorted_theta[0, 0]) < float(sorted_theta[0, 5])

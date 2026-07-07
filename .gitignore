@@ -1,22 +1,14 @@
-# Environment — never commit the local .env (may have machine-specific paths)
+# Environment 
 .env
 .env.local
-
-# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
 dist/
 build/
-
-# Virtual environments
 .venv/
 venv/
 env/
-
-# Jupyter
 .ipynb_checkpoints/
-
-# Logs and temp files
 *.log
 *.tmp

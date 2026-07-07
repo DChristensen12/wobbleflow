@@ -1,5 +1,3 @@
-# Variational inference with planar normalizing flows.
-
 from __future__ import annotations
 import math
 from typing import Callable, List, Optional, Tuple
@@ -10,10 +8,9 @@ from src.flows.planar import PlanarLayer
 
 
 class FlowVI(nn.Module):
-    """Mean-field Gaussian base distribution + K planar transformations.
-    Sampling pushes a reparameterized Gaussian draw through the K layers in
-    sequence; the log-density of each sample is tracked alongside by
-    subtracting the per-layer log|det Jacobian|.
+    """A mean-field Gaussian base plus K planar layers stacked on top.
+    Sampling pushes a reparameterized Gaussian draw through the K layers in order,
+    tracking the log-density along the way by subtracting each layer's log|det Jacobian|.
     """
 
     def __init__(self, D: int, K: int,
@@ -27,12 +24,11 @@ class FlowVI(nn.Module):
         self.layers = nn.ModuleList([PlanarLayer(D) for _ in range(K)])
 
     def sample_and_log_q(self, n: int) -> Tuple[Tensor, Tensor]:
-        """Draw n samples from the flow and return (samples, log q at samples)."""
+        """Draw n samples from the flow, return (samples, log q at samples)."""
         eps = torch.randn(n, self.mu.numel())
         s = torch.exp(self.log_s)
         z = self.mu.unsqueeze(0) + s.unsqueeze(0) * eps
-        # log q_0 of the diagonal Gaussian base, written via eps so we
-        # don't have to invert the reparam map.
+        # log q_0 of the base Gaussian, computed straight from eps so we skip inverting the reparam map
         log_q = (-0.5 * eps ** 2 - self.log_s - 0.5 * math.log(2.0 * math.pi)).sum(dim=1)
         for layer in self.layers:
             z, log_det = layer(z)
@@ -45,10 +41,10 @@ def fit_flow_vi(model: FlowVI,
                 n_iter: int = 2000, lr: float = 1e-3,
                 n_mc: int = 32, verbose: bool = False) -> list:
     """Trains a FlowVI model by maximizing the flow-based ELBO.
-    The learning rate is lower than mean-field VI (1e-3 vs 1e-2): planar
-    layers compose gradients across K layers, so the safe step size shrinks.
-    Cosine LR decay and a gentle norm clip at 10 keep training stable
-    without strangling the flow.
+    Learning rate here is lower than in mean-field VI (1e-3 vs 1e-2) because
+    gradients compose across all K planar layers, so the safe step size shrinks.
+    Cosine LR decay plus a gentle norm clip at 10 keeps training stable without
+    choking off the flow.
     """
     opt = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(

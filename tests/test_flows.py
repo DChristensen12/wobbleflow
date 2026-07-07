@@ -6,16 +6,11 @@ from src.flows.planar import PlanarLayer
 from src.flows.realnvp import CouplingLayer, RealNVP
 
 
-# ---------------------------------------------------------------------------
-# PlanarLayer
-# ---------------------------------------------------------------------------
-
 class TestPlanarLayer:
     def test_invertibility_constraint_at_init(self):
-        """w^T u_hat >= -1 must hold for all random initializations.
-
-        This is the same check performed in cell 55 of the notebook before
-        training begins; it guarantees the layer is invertible.
+        """w^T u_hat >= -1 has to hold for every random init, not just some of them.
+        Same check as cell 55 in the notebook, run before training starts, since
+        it's what guarantees the layer is invertible in the first place.
         """
         torch.manual_seed(42)
         for _ in range(20):
@@ -64,16 +59,11 @@ class TestPlanarLayer:
         assert log_det.shape == (1,)
 
 
-# ---------------------------------------------------------------------------
-# RealNVP
-# ---------------------------------------------------------------------------
-
 class TestRealNVP:
     def test_forward_inverse_reconstruction_error(self):
         """max |z - inv(fwd(z))| < 1e-6.
-
-        This is the exact invertibility check from cell 57 of the notebook,
-        run before the FlowMC training loop begins.
+        Same invertibility check as cell 57 in the notebook, run right before
+        the FlowMC training loop starts.
         """
         torch.manual_seed(0)
         flow = RealNVP(D=12, n_layers=6, hidden=64)

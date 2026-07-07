@@ -1,5 +1,3 @@
-# Mean-field Gaussian variational inference.
-
 from __future__ import annotations
 import math
 from typing import Callable, Tuple
@@ -8,16 +6,16 @@ from torch import Tensor
 
 
 def gaussian_entropy(log_s: Tensor) -> Tensor:
-    """Entropy of N(mu, diag(s^2)). Independent of mu."""
+    """Entropy of N(mu, diag(s^2)). Doesn't depend on mu at all."""
     return torch.sum(log_s) + 0.5 * log_s.numel() * (1.0 + math.log(2.0 * math.pi))
 
 
 def elbo_meanfield(mu: Tensor, log_s: Tensor,
                    log_post_fn: Callable[[Tensor], Tensor],
                    n_mc: int = 32) -> Tensor:
-    """Monte Carlo ELBO using the reparameterization trick.
-    Draws n_mc samples eta = mu + s * eps with eps ~ N(0,I), averages
-    log pi(eta), then adds the closed-form Gaussian entropy.
+    """Monte Carlo estimate of the ELBO via the reparameterization trick.
+    Draws n_mc samples eta = mu + s * eps with eps ~ N(0,I), averages log pi(eta),
+    then tacks on the closed-form Gaussian entropy.
     """
     s = torch.exp(log_s)
     eps = torch.randn(n_mc, mu.numel())
@@ -31,11 +29,11 @@ def fit_meanfield(eta_init: Tensor,
                   n_iter: int = 2000, lr: float = 1e-2,
                   n_mc: int = 64, log_s_init: float = -3.0,
                   verbose: bool = False) -> Tuple[Tensor, Tensor, list]:
-    """Optimizes the ELBO with Adam plus cosine LR decay.
-    A tight initial variance (log_s = -3, so s ~ 0.05) keeps the likelihood
-    gradient dominant early and prevents the variance from blowing up before
-    the mean has had a chance to settle. Cosine decay smooths out late
-    training where MC noise would otherwise produce visible ELBO jitter.
+    """Optimizes the ELBO with Adam and a cosine LR decay.
+    Starting the variance tight (log_s = -3, so s ~ 0.05) keeps the likelihood
+    gradient in charge early on and stops the variance from blowing up before
+    the mean has settled somewhere sensible. Cosine decay smooths out the tail
+    end of training, where MC noise would otherwise show up as ELBO jitter.
     """
     mu = eta_init.detach().clone().requires_grad_(True)
     log_s = torch.full_like(eta_init, log_s_init).requires_grad_(True)
@@ -54,8 +52,7 @@ def fit_meanfield(eta_init: Tensor,
             break
         loss = -elbo
         loss.backward()
-        # Clip rare large gradients that would otherwise destabilize training.
-        torch.nn.utils.clip_grad_norm_([mu, log_s], 5.0)
+        torch.nn.utils.clip_grad_norm_([mu, log_s], 5.0)  # rare huge gradients otherwise blow up training
         opt.step()
         scheduler.step()
         history.append(float(elbo.detach()))

@@ -1,6 +1,3 @@
-# Cross-method comparison: runs all four methods end-to-end with shared
-# configuration, then produce side-by-side plots.
-
 from __future__ import annotations
 import os
 import numpy as np
@@ -51,10 +48,9 @@ BUFFER_SIZE    = 2000
 SEED           = 0
 
 
-# Reproducibility: We have torch.manual.seed(0) fixed so the notebook
-# produces identical results on every run.
-# So comment out the torch.manual_seed(0) lines if you want each run to draw fresh random numbers
-# (so the results will still be qualitatively the same, just with different RNG draws).
+# Every torch.manual_seed(0) call below is there so this script gives identical
+# numbers on every run. Comment those lines out if you want fresh draws each time
+# (results should look qualitatively the same, just noisier).
 torch.set_default_dtype(torch.float64)
 np.random.seed(SEED)
 
@@ -71,15 +67,12 @@ print(f"{t_obs.numel()} observations, span {span:.1f} days")
 
 
 def lp_eta(eta):
-    """Shared closure: log posterior in normalized eta-space at the K2-24 data."""
+    """Log posterior in eta-space, closed over the K2-24 data so every method can just call lp_eta(eta)."""
     return log_posterior_unconstrained(eta, t_obs, rv_obs, rv_err)
 
 
 eta0 = initial_eta()
 
-# --------------------------------------------------------------------------- #
-# Hamiltonian Monte Carlo
-# --------------------------------------------------------------------------- #
 print("\nHMC")
 torch.manual_seed(0)
 all_hmc_samples, all_hmc_acc = run_hmc_multichain(
@@ -93,9 +86,6 @@ hmc_eta = torch.cat(all_hmc_samples, dim=0)
 hmc_theta = sort_planets_by_period(eta_samples_to_theta(hmc_eta))
 torch.save({"samples": hmc_theta, "accept_rates": all_hmc_acc}, "results/hmc.pt")
 
-# --------------------------------------------------------------------------- #
-# Mean-Field Variational Inference
-# --------------------------------------------------------------------------- #
 print("\nMean-field VI")
 torch.manual_seed(0)
 mu_mf, log_s_mf, mf_hist = fit_meanfield(
@@ -107,9 +97,6 @@ torch.save({
     "samples": mf_theta, "mu": mu_mf, "log_s": log_s_mf, "history": mf_hist,
 }, "results/vi_meanfield.pt")
 
-# --------------------------------------------------------------------------- #
-# Normalizing Flow-Based Variational Inference
-# --------------------------------------------------------------------------- #
 print("\nFlow VI")
 torch.manual_seed(0)
 fvi_model = FlowVI(D=12, K=FLOW_LAYERS, mu_init=eta0, log_s_init=-3.0)
@@ -123,9 +110,6 @@ torch.save({
     "history": fvi_hist,
 }, "results/vi_flow.pt")
 
-# --------------------------------------------------------------------------- #
-# Normalizing Flow-Based Markov Chain Monte Carlo
-# --------------------------------------------------------------------------- #
 print("\nFlow MCMC")
 torch.manual_seed(0)
 eta_inits = torch.zeros(N_FMC_CHAINS, 12) + 0.01 * torch.randn(N_FMC_CHAINS, 12)
@@ -150,9 +134,6 @@ torch.save({
     "flow_state": flow_for_mcmc.state_dict(),
 }, "results/flowmc.pt")
 
-# ---------------------------------------------------------------------------
-# Diagnostics
-# ---------------------------------------------------------------------------
 print("\nDiagnostics")
 ess_hmc_p1 = ess_1d(hmc_theta[:, 0].numpy())
 ess_hmc_p2 = ess_1d(hmc_theta[:, 5].numpy())
@@ -177,9 +158,6 @@ for name, theta in [
     print(f"{name:<16} {s1['median']:>11.3f} {s1['std']:>10.3f} "
           f"{s2['median']:>11.3f} {s2['std']:>10.3f}")
 
-# --------------------------------------------------------------------------- #
-# Figures
-# --------------------------------------------------------------------------- #
 print("\nFigures")
 samples_dict = {
     "HMC":           hmc_theta.numpy(),
@@ -188,18 +166,16 @@ samples_dict = {
     "flow MCMC":     fmc_theta.numpy(),
 }
 
-# This produces stacked P1 / P2 histograms across methods
 fig, _ = plot_period_posteriors(samples_dict)
 fig.savefig("figures/period_posteriors.png", dpi=150, bbox_inches="tight")
 print("  saved figures/period_posteriors.png")
 
-# This makes RV data with posterior-mean fits from each method
 t_dense = np.linspace(float(t_obs.min()), float(t_obs.max()), 500)
 t_dense_t = torch.tensor(t_dense)
 
 
 def posterior_mean_rv(theta_samples: torch.Tensor) -> np.ndarray:
-    """Average the RV model over posterior samples to get the mean RV curve."""
+    """Average the RV curve over posterior samples so we get one mean curve per method to plot."""
     rv_curves = torch.stack([
         rv_model_two_planet(t_dense_t, theta_samples[i, :11])
         for i in range(len(theta_samples))
@@ -214,14 +190,14 @@ fig2, _ = plot_rv_with_models(
 fig2.savefig("figures/rv_fit.png", dpi=150, bbox_inches="tight")
 print("  saved figures/rv_fit.png")
 
-# This makes the per-method RV fits in a 2x2 grid
+# same RV fits, but split into a 2x2 grid, one panel per method
 fig3, _ = plot_themed_rv_fits(
     t_obs.numpy(), rv_obs.numpy(), rv_err.numpy(), t_dense, rv_models,
 )
 fig3.savefig("figures/rv_fit_themed.png", dpi=150, bbox_inches="tight")
 print("  saved figures/rv_fit_themed.png")
 
-# This is a Side-by-side posterior width comparison
+# side by side comparison of how wide each method's posterior ends up
 fig4, axes = plt.subplots(1, 2, figsize=(11, 4))
 method_order = ["HMC", "mean-field VI", "flow VI", "flow MCMC"]
 p1_stds = [posterior_summary(samples_dict[m][:, 0])["std"] for m in method_order]
