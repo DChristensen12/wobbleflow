@@ -50,20 +50,7 @@ def eta_to_theta(eta: Tensor):
 
 
 def log_jacobian(eta: Tensor) -> Tensor:
-    """Log |det d(prior-variable) / d eta| for the change of variables.
-
-    Coordinate by coordinate:
-      - Period: prior is on log P, so eta maps to log P. d(log P)/d eta = P_LOG_SCALE,
-        giving log term log(P_LOG_SCALE).
-      - tp: affine in eta with slope TP_NORM_SCALE, log term log(TP_NORM_SCALE).
-      - Eccentricity: e = sigmoid(eta * E_LOGIT_SCALE + ...), so
-        d e / d eta = E_LOGIT_SCALE * e * (1 - e), giving log term
-        log(E_LOGIT_SCALE) + log(e) + log(1-e).
-      - omega: identity map, contributes 0.
-      - K: K = exp(eta + K_LOG_MEAN), so d K / d eta = K, log term eta + K_LOG_MEAN.
-      - v0: affine with slope V0_NORM_SCALE, log term log(V0_NORM_SCALE).
-      - log-jitter: affine with slope LOG_JIT_NORM_SCALE, log term log(LOG_JIT_NORM_SCALE).
-    """
+    """Log |det d(prior-variable) / d eta| for the change of variables, summed coordinate by coordinate below."""
     # periods: prior is on log P, so the Jacobian is just log(P_LOG_SCALE)
     jac = math.log(P1_LOG_SCALE) + math.log(P2_LOG_SCALE)
 

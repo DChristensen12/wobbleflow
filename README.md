@@ -27,13 +27,13 @@ The data loads directly from the RadVel GitHub in both the notebook and `cross_m
 
 ## Methods
 
-**Hamiltonian Monte Carlo (`hmc.py`)**: leapfrog integrator with MH correction, run across 12 parallel chains. Each chain starts at eta=0 (which maps exactly to the K2 transit configuration). Burn-in is 300 steps per chain, then 500 samples each.
+**HMC** (`hmc.py`): leapfrog integrator with an MH correction, 12 chains running in parallel, each one starting from eta=0 (which lands exactly on the K2 transit configuration). 300 burn-in steps, then 500 samples per chain.
 
-**Mean-field Variational Inference (`vi_meanfield.py`)**: Diagonal Gaussian variational family, ELBO maximized with Adam and cosine LR decay. Converges quickly but can't represent parameter correlations by construction.
+**Mean-field VI** (`vi_meanfield.py`) is the simplest of the four: a diagonal Gaussian variational family, ELBO maximized with Adam and a cosine LR decay. Converges fast, but a diagonal Gaussian can't represent correlations between parameters, that's a structural limit, not a tuning problem.
 
-**Normalizing Flow Variational Inference (`vi_flow.py`)**: Diagonal Gaussian base, but 8 planar layers push it into a richer family. Slower to train and the ELBO improvement is real (~4 nats over mean-field), though the marginal histograms look almost identical. The difference is in the joint distribution, not the marginals.
+**Flow VI** (`vi_flow.py`) starts from the same diagonal Gaussian and pushes it through 8 planar layers to get a richer family. Takes longer to train, and the ELBO improvement is real, about 4 nats over mean-field, even though the marginal histograms end up looking almost identical. The gain shows up in the joint distribution, not the marginals (more on why that matters below).
 
-**Normalizing Flow Monte Carlo (`flowmc.py`)**: 24 parallel MALA chains with a Real-NVP flow trained concurrently on the chain history. The flow proposes global jumps; MALA handles local exploration. After a 50-step warmup the flow starts making proposals, and even a global acceptance rate of ~0.02 is enough to make a meaningful difference in robustness.
+**FlowMC** (`flowmc.py`): 24 parallel MALA chains with a Real-NVP flow training concurrently on their history. MALA handles local exploration, the flow proposes the occasional global jump once past a 50-step warmup. Global acceptance sits around 0.02, which sounds low, but it's enough to meaningfully change how robust the pooled posterior ends up being.
 
 <div align="center">
   <img src="assets/chains_comparison.gif" width="700"/>
@@ -46,11 +46,11 @@ The data loads directly from the RadVel GitHub in both the notebook and `cross_m
 
 All four methods agree on the posterior mode: P1 around 20.4–20.5 days, P2 around 41–41.5 days, both within about half a day of the transit values. The interesting differences are in how they characterize uncertainty.
 
-**On the Variational Inference comparison:** the headline claim from Rezende & Mohamed is that flows give a strictly better approximation than mean-field, and the ELBOs back this up. What's subtle is that the marginal period histograms look nearly identical between the two methods. The flow's gain comes from modeling joint correlations between parameters (period-eccentricity, period-amplitude), not from changing the marginals. If you evaluated this comparison by eyeballing histograms you'd conclude the flow barely helped, the ELBO is the honest diagnostic.
+Rezende & Mohamed's headline claim, that a flow gives a strictly better approximation than mean-field, holds up here: the ELBOs back it up. Here's the part that would fool you though: the marginal period histograms are nearly identical between the two methods. The flow's actual gain comes from modeling joint correlations (period-eccentricity, period-amplitude) rather than reshaping the marginals, so judging this comparison by eyeballing histograms alone would lead you to conclude the flow barely helped. It's the ELBO that tells the real story.
 
 Neither VI method captures multimodality. HMC's P1 histogram shows secondary peaks at aliased periods around 10 and 15 days; both VI posteriors are clean unimodals at the dominant mode. Planar flows are local deformations of a single Gaussian, not architectures that can span well-separated modes. That's a known limitation, not a bug.
 
-**On the MCMC comparison:** HMC's pooled P2 posterior has a standard deviation of 88 days, which looks absurd. Looking at the individual chains, 11 of the 12 have acceptance rates between 0.47 and 0.93 and explore the posterior normally. Chain 6 drifted into a high-curvature region where the fixed leapfrog parameters broke down (acceptance 0.286), and at least one chain wandered into the prior tail at large P2 and got stuck. The 88-day standard deviation is from one or two pathological chains contaminating the pool. FlowMC drops P2 std to 3.15 days and produces a much cleaner posterior, not because each individual chain mixes dramatically better, but because 24 chains plus occasional global proposals gives enough redundancy that a few bad chains don't dominate.
+On the MCMC side, HMC's pooled P2 posterior comes out with a standard deviation of 88 days at first glance, which looks absurd. Looking at individual chains tells a calmer story: 11 of 12 have acceptance rates between 0.47 and 0.93 and explore the posterior normally. Chain 6 drifted into a high-curvature region where the fixed leapfrog parameters broke down (acceptance 0.286), and at least one chain wandered into the prior tail at large P2 and got stuck there. The 88-day number comes down to one or two pathological chains dragging the pooled statistic around. FlowMC gets P2's std down to 3.15 days and produces a noticeably cleaner posterior. The reason isn't that each chain mixes dramatically better on its own, it comes down to redundancy: with 24 chains plus occasional global proposals, a couple of bad chains can't drag the pooled statistic around the way chain 6 did for HMC.
 
 </br>
 
